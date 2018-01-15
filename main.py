@@ -1,15 +1,17 @@
-import urllib
+import BeautifulSoup
+import urllib2
 import lxml.html
 import urlparse
 import tldextract
 
 
-outputfile = '/root/Desktop/scripts/output/output.txt'
-rootUrl = "http://www.megacorpone.com/"
+outputfile = ''
+rootUrl = ""
 
 
 def is_absolute(url):
     return bool(urlparse.urlparse(url).netloc)
+
 def get_domain(url):
 	extracted = tldextract.extract(url)
 	output = "{}.{}".format(extracted.domain, extracted.suffix)
@@ -22,25 +24,31 @@ def dedup(Urllist):
 			output.append(i)
 	return output
 
-def extract_urls(rootUrl):
-	connection = urllib.urlopen(rootUrl)
-	dom =  lxml.html.fromstring(connection.read())
+def extract_urls(rootUrl,Url):
 	output = list()
-	for link in dom.xpath('//a/@href'): # select the url in href for all a tags(links)
-	    
-	    if not is_absolute(link):
-	    	link = rootUrl+link
-	    	output.append(link)
-	    else :
-	    	output.append(link)
+	try:
+		connection = urllib2.urlopen(Url, timeout=5)
+		soup = BeautifulSoup.BeautifulSoup(connection)
+		for link in soup.findAll("a"):
+			link = link.get("href")
+			if not is_absolute(link):
+				if "mailto:" not in link:
+					link = rootUrl+link
+					output.append(link)
+			else :
+				output.append(link)
+		return output
+	except urllib2.URLError, e:
+		return output
+
 	    
 	return output
 
 def main(outputfile,rootUrl):
+	outputFile = open(outputfile, 'w')
 	fullUrlList 	= list()
 	dedupUrlList 	= list()
 	rootUrlList 	= list()
-	scannedUrls 	= list()
 
 	rootUrlList.append(rootUrl)
 
@@ -48,19 +56,21 @@ def main(outputfile,rootUrl):
 
 	for link in rootUrlList:
 		# get full list of urls
-		print link
-		fullUrlList = extract_urls(link)
+		fullUrlList = extract_urls(rootUrl,link)
 		#dedupUrlList.extend(dedup(fullUrlList))
 		for i in fullUrlList :
 			if i not in dedupUrlList :
 				dedupUrlList.append(i)
+				outputFile.write("%s\n" % i)
 				domain = get_domain(i)
 				if domain == rootUrlDomain:
 					print "found "+i+" in "+link
 					rootUrlList.append(i)
+	outputFile.close()
+
 
 		
-		#scannedUrls.append()
+
 	
 if __name__ == "__main__":
 	main(outputfile,rootUrl)
